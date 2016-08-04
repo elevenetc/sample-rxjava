@@ -5,14 +5,14 @@ package su.sample.rxjava.app.models;
  */
 public class Item {
 	private final String name;
-	private final String id;
+	private final int id;
 
-	public Item(String id, String name) {
+	public Item(int id, String name) {
 		this.id = id;
 		this.name = name;
 	}
 
-	public String getId() {
+	public int getId() {
 		return id;
 	}
 
