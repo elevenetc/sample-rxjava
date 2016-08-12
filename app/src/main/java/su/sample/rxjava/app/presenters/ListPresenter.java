@@ -1,12 +1,12 @@
 package su.sample.rxjava.app.presenters;
 
-import java.util.List;
-
-import rx.android.schedulers.AndroidSchedulers;
-import rx.schedulers.Schedulers;
+import rx.Observable;
+import rx.Subscription;
+import su.sample.rxjava.app.annotations.Inject;
+import su.sample.rxjava.app.database.Database;
 import su.sample.rxjava.app.gcm.GCMBroadcastBus;
-import su.sample.rxjava.app.models.Item;
 import su.sample.rxjava.app.rest.RestService;
+import su.sample.rxjava.app.utils.RxSchedulers;
 import su.sample.rxjava.app.views.ListView;
 
 /**
@@ -14,35 +14,42 @@ import su.sample.rxjava.app.views.ListView;
  */
 public class ListPresenter {
 
-	public RestService restService;
-	public GCMBroadcastBus gcmBroadcastBus;
+    @Inject
+    public Database database;
+    @Inject
+    public RestService restService;
+    @Inject
+    public GCMBroadcastBus gcmBroadcastBus;
 
-	private ListView view;
+    private ListView view;
 
-	public void onViewCreated(ListView view) {
-		this.view = view;
-		view.showLoading();
-		loadData();
-	}
+    private Subscription gcmSub;
+    private Subscription dataSub;
 
-	private void subscribeOn
+    public void onViewCreated(ListView view) {
+        this.view = view;
+        view.showLoading();
+        loadData();
+        subscribeOnGCM();
+    }
 
-	private void loadData() {
-		restService.getItems()
-				.subscribeOn(Schedulers.io())
-				.observeOn(AndroidSchedulers.mainThread())
-				.subscribe(this::handlerResponse, this::handleError);
-	}
+    public void onViewDestroyed() {
+        gcmSub.unsubscribe();
+        dataSub.unsubscribe();
+    }
 
-	private void handleError(Throwable throwable) {
-		view.showError(throwable.toString());
-	}
+    private void subscribeOnGCM() {
+        gcmSub = gcmBroadcastBus.getObservable()
+                .doOnNext(database::saveItem)
+                .compose(RxSchedulers.composer())
+                .subscribe(view::addItem, view::showGCMError);
+    }
 
-	private void handlerResponse(List<Item> result) {
-		view.showData(result);
-	}
-
-	public void onViewDestroyed() {
-
-	}
+    private void loadData() {
+        dataSub = Observable
+                .concat(database.getItems(), restService.getItems().doOnNext(database::saveItems))
+                .takeFirst(items -> items.size() > 0)
+                .compose(RxSchedulers.composer())
+                .subscribe(view::showItems, view::showError);
+    }
 }

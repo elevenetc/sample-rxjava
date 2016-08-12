@@ -12,7 +12,9 @@ public interface ListView {
 
 	void showLoading();
 
-	void showError(String text);
+	void showError(Throwable text);
 
-	void showData(List<Item> items);
+	void showItems(List<Item> items);
+
+	void showGCMError(Throwable throwable);
 }
